@@ -21,6 +21,7 @@ from src.ui.clientes_view import ClientesView
 from src.ui.prestamos_view import PrestamosView
 from src.ui.pagos_view import PagosView
 from src.ui.config_view import ConfigView
+from src.ui.reportes_view import ReportesView
 from src.daemon.ipc_client import DaemonIPCClient
 from src.config import config_app
 
@@ -106,10 +107,12 @@ class MainWindow(QMainWindow):
         self.tab_clientes = ClientesView(self)
         self.tab_prestamos = PrestamosView(self, user_session=self.user_session)
         self.tab_pagos = PagosView(self, user_session=self.user_session)
+        self.tab_reportes = ReportesView(self, user_session=self.user_session)
 
         self.tabs.addTab(self.tab_clientes, "👥 Clientes")
         self.tabs.addTab(self.tab_prestamos, "📊 Préstamos y Simulación")
         self.tabs.addTab(self.tab_pagos, "💰 Pagos y Recaudos")
+        self.tabs.addTab(self.tab_reportes, "📑 Reportes y Exportación")
 
         # PR-02: La pestaña de configuración solo está habilitada para Administradores
         if es_admin:
