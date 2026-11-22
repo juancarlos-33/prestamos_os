@@ -1,6 +1,6 @@
-# PrestamoOS — Sistema de Gestión de Préstamos para Linux
+# PrestamoOS — Plataforma Web de Gestión de Préstamos para Servidor Linux
 
-Sistema de gestión de préstamos cooperativos desarrollado como proyecto final para la asignatura de **Sistemas Operativos**.
+Sistema de microfinanzas y gestión de préstamos cooperativos desplegado de forma nativa en **Servidor Linux (Ubuntu 22.04/24.04 LTS o Debian 12)** para la asignatura de **Sistemas Operativos**.
 
 ## Integrantes del Equipo
 1. **De la Hoz Moreno, Juan Carlos**
@@ -10,54 +10,88 @@ Sistema de gestión de préstamos cooperativos desarrollado como proyecto final 
 
 ---
 
-## 1. Características de Sistemas Operativos Implementadas
-- **Arquitectura de Procesos Desacoplada:** Interfaz de usuario (`prestamo-ui`) y Demonio de fondo (`prestamo-daemon`).
-- **Concurrencia:** Hilos secundarios (`Worker Threads`) para tareas intensivas de I/O (PDFs, respaldos, consultas) manteniendo la UI a 60 FPS sin congelamientos.
-- **IPC Real:** Comunicación entre la UI y el Demonio mediante Sockets de dominio UNIX (`AF_UNIX`) con protocolo JSON por líneas.
-- **Sincronización:** Bloqueo consultivo de archivo POSIX (`fcntl.flock`) y transacciones ACID en SQLite (modo WAL).
-- **Manejo de Señales POSIX:** Cierre seguro y liberación de descriptores ante `SIGTERM`/`SIGINT`, y recarga en caliente de configuraciones ante `SIGHUP`.
-- **Estándar XDG y Seguridad:** Datos en `~/.local/share/prestamos_os` y configuración en `~/.config/prestamos_os` con permisos restrictivos `0700` y `0600`.
-- **Servicio del Sistema:** Demonio gestionado por `systemd --user` con política `Restart=on-failure`.
-- **Notificaciones de Escritorio:** Integración con D-Bus / `libnotify` (`notify-send`).
+## 1. Arquitectura y Conceptos de Sistemas Operativos Implementados
+- **Servidor Web Nativo en Linux:** Desarrollado con FastAPI y Uvicorn corriendo como servicio gestionado por `systemd` (`prestamo-web.service`) con reinicio automático (`Restart=always`).
+- **Separación de Procesos y Demonio de Fondo:** Proceso independiente (`prestamo-daemon`) que vigila cuotas en mora y ejecuta respaldos programados.
+- **IPC Real (SO-03):** Comunicación bidireccional local entre el servidor web y el demonio a través de **Sockets de Dominio UNIX (`AF_UNIX`)** en `/run/user/<UID>/` o `/run/prestamos/`.
+- **Sincronización y Bloqueos de Kernel:** Bloqueo consultivo de archivos POSIX con `fcntl.flock` y transacciones ACID en SQLite (modo WAL).
+- **Manejo de Señales POSIX (SO-04):**
+  - `SIGTERM` / `SIGINT`: Apagado limpio (*Graceful Shutdown*), terminando transacciones y liberando sockets sin corromper la BD.
+  - `SIGHUP`: Recarga en caliente de configuraciones desde `config.json` sin interrumpir el servicio.
+- **Estándar XDG y Seguridad:** Datos y configuraciones en `~/.config/prestamos_os` (`0600`) y `~/.local/share/prestamos_os` (`0700`).
+- **Monitoreo de Recursos (SO-09):** Medición de memoria RSS y CPU mediante lectura de `/proc/<pid>/status` y comandos POSIX (`pidstat`, `ps -eLf`, `lsof`).
 
 ---
 
-## 2. Requisitos Previos e Instalación en Linux
+## 2. Despliegue Rápido en Servidor Linux (Ubuntu / Debian)
 
-### Plataforma Requerida
-- Ubuntu 22.04 / 24.04 LTS o Debian 12
-- Python 3.10 o superior
-
-### Dependencias del Sistema
+### Opción A: Despliegue Automatizado en 1 Solo Paso
+En la terminal del servidor Linux limpio:
 ```bash
-sudo apt update
-sudo apt install -y python3 python3-pip python3-pyqt6 libnotify-bin
+git clone <URL_DEL_REPOSITORIO> prestamos_os
+cd prestamos_os
+chmod +x scripts/deploy_server.sh
+sudo ./scripts/deploy_server.sh
+```
+
+El script instalará automáticamente las dependencias, creará el entorno virtual, sembrará más de 800 cuotas de prueba y activará el servicio `systemd`.
+
+### Opción B: Ejecución Manual de Desarrollo
+```bash
+# 1. Instalar dependencias
+sudo apt update && sudo apt install -y python3 python3-pip python3-venv sqlite3
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
+
+# 2. Sembrar datos masivos de prueba (800+ cuotas)
+python scripts/seed_demo_data.py
+
+# 3. Iniciar el servidor web
+uvicorn src.web.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Ejecución de Pruebas Unitarias
-```bash
-python3 -m unittest tests/test_loan_engine.py -v
-```
+Abra el navegador en: `http://<IP-DEL-SERVIDOR>:8000`
 
-### Instalación como Servicio y Lanzador de Escritorio
-```bash
-chmod +x scripts/install.sh
-./scripts/install.sh install
-```
+---
 
-Para verificar el estado del servicio demonio con systemd:
+## 3. Credenciales de Acceso por Defecto
+- **Administrador:** `admin` / `admin123` (Acceso total, configuración y respaldos).
+- **Cajero:** `cajero` / `cajero123` (Operación: clientes, préstamos y pagos).
+
+---
+
+## 4. Ejecución de Pruebas Unitarias
+El proyecto cuenta con **15 pruebas unitarias** que verifican la precisión matemática financiera (`Decimal`), la aplicación de pagos, las validaciones de mora y los endpoints web:
 ```bash
-systemctl --user status prestamo-daemon.service
-journalctl --user -u prestamo-daemon.service -f
+python3 -m unittest discover tests -v
 ```
 
 ---
 
-## 3. Comandos Útiles para la Sustentación
-- **Monitorear procesos e hilos:** `htop`, `ps -eLf | grep prestamo`
-- **Monitorear descriptores abiertos:** `lsof -p <PID>`
-- **Monitorear llamadas al sistema:** `strace -p <PID> -e trace=file,desc,signal,socket`
-- **Probar envío de señales:**
-  - Recarga dinámica: `kill -HUP <PID_DEMONIO>`
-  - Cierre ordenado: `kill -TERM <PID_DEMONIO>`
+## 5. Comandos para la Sustentación en Vivo ante el Docente
+- **Verificar estado del servicio en systemd:**
+  ```bash
+  sudo systemctl status prestamo-web.service
+  ```
+- **Monitorear logs en tiempo real (journald):**
+  ```bash
+  sudo journalctl -u prestamo-web.service -f
+  ```
+- **Demostrar recarga de configuración sin caída (SIGHUP):**
+  ```bash
+  PID=$(pgrep -f "src.web.app" | head -n 1)
+  kill -HUP $PID
+  ```
+- **Demostrar apagado seguro sin corrupción (SIGTERM - Criterio 4):**
+  ```bash
+  kill -TERM $PID
+  ```
+- **Inspeccionar descriptores y sockets abiertos:**
+  ```bash
+  lsof -p $PID | grep -E "sock|prestamos.db"
+  ```
+- **Medir consumo de CPU y Memoria (SO-09):**
+  ```bash
+  python3 scripts/measure_resources.py $PID
+  ```
