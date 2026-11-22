@@ -1,0 +1,18 @@
+[Unit]
+Description=Demonio de Alertas y Respaldos - PrestamoOS
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m src.daemon.daemon_service
+WorkingDirectory=%h/.local/share/prestamos_os
+Restart=on-failure
+RestartSec=5s
+
+# Seguridad y aislamiento de proceso
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/prestamos_os %h/.config/prestamos_os /run/user/%U
+
+[Install]
+WantedBy=default.target

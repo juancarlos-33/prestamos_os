@@ -1,0 +1,5 @@
+# Requisitos del Sistema de Gestión de Préstamos
+PyQt6>=6.6.0
+reportlab>=4.1.0
+argon2-cffi>=23.1.0
+pytest>=8.0.0

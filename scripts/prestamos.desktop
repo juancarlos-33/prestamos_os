@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=PrestamoOS
+Comment=Sistema de Gestión de Préstamos para Cooperativas
+Exec=python3 -m src.ui.main_window
+Icon=prestamos
+Terminal=false
+Categories=Office;Finance;
+StartupNotify=true
