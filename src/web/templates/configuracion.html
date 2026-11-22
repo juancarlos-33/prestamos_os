@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración del Sistema y Monitor IPC — PrestamoOS{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div>
+        <h1 class="text-2xl font-bold text-slate-800">Administración del Sistema y Servicios Linux (PR-25, SO-03, SO-04)</h1>
+        <p class="text-sm text-slate-500">Parámetros institucionales, control del demonio de fondo mediante IPC sobre Sockets UNIX y gestión de copias de seguridad.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Formulario de Parámetros de la Entidad (6 Cols) -->
+        <div class="lg:col-span-6 bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <h2 class="font-bold text-slate-800 text-base border-b border-slate-100 pb-2 flex items-center">
+                <i class="fa-solid fa-building-columns mr-2 text-blue-600"></i> Parámetros de la Entidad (PR-25)
+            </h2>
+
+            <form action="/configuracion/guardar" method="POST" class="space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Razón Social de la Cooperativa</label>
+                    <input type="text" name="nombre_entidad" value="{{ config.entidad.nombre }}" required class="w-full border border-slate-300 rounded p-2 text-xs">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">NIT / Identificación</label>
+                        <input type="text" name="nit" value="{{ config.entidad.nit }}" required class="w-full border border-slate-300 rounded p-2 text-xs">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Teléfono</label>
+                        <input type="text" name="telefono" value="{{ config.entidad.telefono }}" required class="w-full border border-slate-300 rounded p-2 text-xs">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Dirección Física</label>
+                    <input type="text" name="direccion" value="{{ config.entidad.direccion }}" required class="w-full border border-slate-300 rounded p-2 text-xs">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Tasa Máxima Legal (Usura %)</label>
+                        <input type="number" step="0.1" name="tasa_maxima_anual" value="{{ config.parametros_prestamo.tasa_maxima_anual }}" required class="w-full border border-slate-300 rounded p-2 text-xs font-semibold">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Tasa de Mora Anual Defecto (%)</label>
+                        <input type="number" step="0.1" name="tasa_mora_anual_defecto" value="{{ config.parametros_prestamo.tasa_mora_anual_defecto }}" required class="w-full border border-slate-300 rounded p-2 text-xs font-semibold">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Umbral Días Mora Bloqueo (PR-11)</label>
+                        <input type="number" name="umbral_dias_mora_bloqueo" value="{{ config.parametros_prestamo.umbral_dias_mora_bloqueo }}" required class="w-full border border-slate-300 rounded p-2 text-xs font-semibold">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Anticipación Alertas Vencimiento</label>
+                        <input type="number" name="alerta_cuotas_dias_anticipacion" value="{{ config.parametros_prestamo.alerta_cuotas_dias_anticipacion }}" required class="w-full border border-slate-300 rounded p-2 text-xs font-semibold">
+                    </div>
+                </div>
+
+                <div class="pt-3">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-xs transition shadow-sm">
+                        💾 Guardar Parámetros en config.json (0600)
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Panel de Control IPC y Respaldos (6 Cols) -->
+        <div class="lg:col-span-6 space-y-6">
+
+            <!-- Estado del Demonio IPC (SO-03 y SO-04) -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <h2 class="font-bold text-slate-800 text-base border-b border-slate-100 pb-2 flex items-center justify-between">
+                    <span><i class="fa-solid fa-server mr-2 text-purple-600"></i> Servicio Demonio e IPC (SO-03)</span>
+                    {% if daemon_online %}
+                    <span class="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">● ONLINE</span>
+                    {% else %}
+                    <span class="text-xs bg-rose-100 text-rose-800 font-bold px-2.5 py-0.5 rounded-full">○ OFFLINE</span>
+                    {% endif %}
+                </h2>
+
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs font-mono space-y-1">
+                    <p><span class="text-slate-500">Canal IPC:</span> Sockets de Dominio UNIX (AF_UNIX)</p>
+                    <p><span class="text-slate-500">Ruta Socket:</span> {{ socket_path }}</p>
+                    <p><span class="text-slate-500">PID Demonio:</span> {{ daemon_pid or 'No detectado' }}</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                    <form action="/configuracion/respaldo_ipc" method="POST">
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded text-xs transition flex items-center justify-center space-x-1.5 shadow-sm">
+                            <i class="fa-solid fa-box-archive"></i>
+                            <span>Disparar Respaldo IPC</span>
+                        </button>
+                    </form>
+
+                    <form action="/configuracion/recargar_sighup" method="POST">
+                        <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-3 rounded text-xs transition flex items-center justify-center space-x-1.5 shadow-sm">
+                            <i class="fa-solid fa-bolt text-yellow-400"></i>
+                            <span>Recarga SIGHUP</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tabla de Respaldos de Base de Datos (PR-26) -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-3">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                    <i class="fa-solid fa-clock-rotate-left mr-2 text-slate-600"></i> Copias de Seguridad (.sql.gz)
+                </h3>
+
+                <div class="overflow-x-auto max-h-[220px]">
+                    <table class="min-w-full divide-y divide-slate-200 text-xs text-left">
+                        <thead class="bg-slate-50 text-slate-600 uppercase font-semibold">
+                            <tr>
+                                <th class="py-2 px-2.5">Archivo</th>
+                                <th class="py-2 px-2.5">Tamaño</th>
+                                <th class="py-2 px-2.5 text-right">Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 font-mono">
+                            {% for b in backups %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="py-2 px-2.5 text-blue-700 font-semibold">{{ b.nombre }}</td>
+                                <td class="py-2 px-2.5">{{ b.tamanio_kb }} KB</td>
+                                <td class="py-2 px-2.5 text-right text-slate-500">{{ b.fecha }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-6 text-slate-400 font-sans">
+                                    No hay copias de seguridad generadas aún.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
