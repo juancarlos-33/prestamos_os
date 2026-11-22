@@ -105,7 +105,7 @@ async def root(request: Request):
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, error: Optional[str] = None):
-    return templates.TemplateResponse("login.html", {
+    return templates.TemplateResponse(request=request, name="login.html", context={
         "request": request,
         "error": error,
         "user": None
@@ -128,14 +128,14 @@ async def login_submit(request: Request, username: str = Form(...), password: st
     conn.close()
 
     if not row or not verify_password(row["password_hash"], password.strip()):
-        return templates.TemplateResponse("login.html", {
+        return templates.TemplateResponse(request=request, name="login.html", context={
             "request": request,
             "error": "Usuario o contraseña incorrectos.",
             "user": None
         })
 
     if not row["activo"]:
-        return templates.TemplateResponse("login.html", {
+        return templates.TemplateResponse(request=request, name="login.html", context={
             "request": request,
             "error": "Usuario inactivo en el sistema.",
             "user": None
@@ -254,7 +254,7 @@ async def dashboard(request: Request):
     daemon_online = (ipc_resp.get("status") == "OK")
     daemon_pid = ipc_resp.get("data", {}).get("daemon_pid") if daemon_online else None
 
-    return templates.TemplateResponse("dashboard.html", {
+    return templates.TemplateResponse(request=request, name="dashboard.html", context={
         "request": request,
         "user": user,
         "active_page": "dashboard",
@@ -303,7 +303,7 @@ async def clientes_list(request: Request, p: int = 1, q: Optional[str] = None):
     clientes = [dict(r) for r in cur.fetchall()]
     conn.close()
 
-    return templates.TemplateResponse("clientes.html", {
+    return templates.TemplateResponse(request=request, name="clientes.html", context={
         "request": request,
         "user": user,
         "active_page": "clientes",
@@ -380,7 +380,7 @@ async def prestamos_page(request: Request):
     clientes = [dict(r) for r in cur.fetchall()]
     conn.close()
 
-    return templates.TemplateResponse("prestamos.html", {
+    return templates.TemplateResponse(request=request, name="prestamos.html", context={
         "request": request,
         "user": user,
         "active_page": "prestamos",
@@ -602,7 +602,7 @@ async def pagos_page(request: Request, prestamo_id: Optional[int] = None):
 
     conn.close()
 
-    return templates.TemplateResponse("pagos.html", {
+    return templates.TemplateResponse(request=request, name="pagos.html", context={
         "request": request,
         "user": user,
         "active_page": "pagos",
@@ -796,7 +796,7 @@ async def calendario_page(request: Request, anio: Optional[int] = None, mes: Opt
         semanas.append(fila)
 
     import json
-    return templates.TemplateResponse("calendario.html", {
+    return templates.TemplateResponse(request=request, name="calendario.html", context={
         "request": request,
         "user": user,
         "active_page": "calendario",
@@ -820,7 +820,7 @@ async def reportes_page(request: Request):
     user = requerir_autenticacion(request)
     hoy = date.today().isoformat()
     hace_un_mes = (date.today() - timedelta(days=30)).isoformat()
-    return templates.TemplateResponse("reportes.html", {
+    return templates.TemplateResponse(request=request, name="reportes.html", context={
         "request": request,
         "user": user,
         "active_page": "reportes",
@@ -889,7 +889,7 @@ async def configuracion_page(request: Request):
                 "fecha": datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
             })
 
-    return templates.TemplateResponse("configuracion.html", {
+    return templates.TemplateResponse(request=request, name="configuracion.html", context={
         "request": request,
         "user": user,
         "active_page": "configuracion",
