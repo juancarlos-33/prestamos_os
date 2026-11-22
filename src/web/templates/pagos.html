@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Liquidación de Pagos y Recaudos — PrestamoOS{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div>
+        <h1 class="text-2xl font-bold text-slate-800">Recaudos y Liquidación de Cuotas (PR-17 a PR-20)</h1>
+        <p class="text-sm text-slate-500">Imputación ordenada: <b>Mora &rarr; Intereses &rarr; Capital</b> con cálculo moratorio diario y comprobante en PDF.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Lista de Préstamos Activos (7 Cols) -->
+        <div class="lg:col-span-7 bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <h2 class="font-bold text-slate-800 text-base border-b border-slate-100 pb-2 flex items-center justify-between">
+                <span><i class="fa-solid fa-file-invoice-dollar mr-2 text-blue-600"></i> Préstamos en Cartera</span>
+                <span class="text-xs text-slate-500 font-normal">Haga clic en un crédito para liquidar</span>
+            </h2>
+
+            <div class="overflow-x-auto max-h-[500px]">
+                <table class="min-w-full divide-y divide-slate-200 text-xs text-left">
+                    <thead class="bg-slate-50 font-semibold text-slate-600 uppercase tracking-wider sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="py-2.5 px-3">ID</th>
+                            <th class="py-2.5 px-3">Cliente</th>
+                            <th class="py-2.5 px-3">Saldo Capital</th>
+                            <th class="py-2.5 px-3">Estado</th>
+                            <th class="py-2.5 px-3 text-right">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for p in prestamos %}
+                        <tr class="hover:bg-blue-50/50 cursor-pointer transition {% if prestamo_seleccionado and prestamo_seleccionado.id == p.id %}bg-blue-50 border-l-4 border-blue-600{% endif %}"
+                            onclick="window.location.href='/pagos?prestamo_id={{ p.id }}'">
+                            <td class="py-2.5 px-3 font-bold text-blue-700">#{{ p.id }}</td>
+                            <td class="py-2.5 px-3 font-medium text-slate-800">{{ p.nombres }} {{ p.apellidos }}</td>
+                            <td class="py-2.5 px-3 font-semibold">${{ "{:,.2f}".format(p.saldo_capital_actual) }}</td>
+                            <td class="py-2.5 px-3">
+                                {% if p.estado == 'ACTIVO' %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">Al Día</span>
+                                {% elif p.estado == 'EN_MORA' %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">En Mora</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2.5 px-3 text-right">
+                                <a href="/pagos?prestamo_id={{ p.id }}" class="text-blue-600 hover:text-blue-900 font-bold">
+                                    Seleccionar &rarr;
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-8 text-slate-400">
+                                No hay préstamos con saldo pendiente de pago.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Panel de Cobro y Liquidación (5 Cols) -->
+        <div class="lg:col-span-5 bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+            <h2 class="font-bold text-slate-800 text-base border-b border-slate-100 pb-2 flex items-center">
+                <i class="fa-solid fa-cash-register mr-2 text-emerald-600"></i> Registrar Abono o Pago
+            </h2>
+
+            {% if prestamo_seleccionado %}
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-xs space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Titular del Crédito:</span>
+                    <span class="font-bold text-slate-900">{{ prestamo_seleccionado.nombres }} {{ prestamo_seleccionado.apellidos }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Documento:</span>
+                    <span class="font-mono">{{ prestamo_seleccionado.tipo_documento }} {{ prestamo_seleccionado.numero_documento }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Saldo Capital Restante:</span>
+                    <span class="font-bold text-blue-700">${{ "{:,.2f}".format(prestamo_seleccionado.saldo_capital_actual) }}</span>
+                </div>
+                {% if cuota_actual %}
+                <div class="flex justify-between border-t border-slate-200 pt-2 text-rose-700">
+                    <span>Mora Acumulada ({{ dias_atraso }} días):</span>
+                    <span class="font-bold">+${{ "{:,.2f}".format(mora_calculada) }}</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>Cuota #{{ cuota_actual.numero_cuota }} (Venc: {{ cuota_actual.fecha_vencimiento }}):</span>
+                    <span class="font-semibold">${{ "{:,.2f}".format(cuota_actual.saldo_pendiente_cuota) }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <form action="/pagos/procesar" method="POST" class="space-y-4">
+                <input type="hidden" name="prestamo_id" value="{{ prestamo_seleccionado.id }}">
+                <input type="hidden" name="mora_actual" id="mora_actual" value="{{ mora_calculada }}">
+                <input type="hidden" name="interes_actual" id="interes_actual" value="{{ cuota_actual.interes_corriente if cuota_actual else 0 }}">
+                <input type="hidden" name="saldo_capital" id="saldo_capital" value="{{ prestamo_seleccionado.saldo_capital_actual }}">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Monto a Pagar (*)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">$</span>
+                        <input type="number" id="monto_pago" name="monto_pago" value="{{ cuota_sugerida }}" min="1000" step="1000" required
+                               oninput="actualizarDesglose()"
+                               class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Método de Pago (*)</label>
+                    <select name="metodo_pago" required class="w-full border border-slate-300 rounded-lg p-2 text-xs font-semibold">
+                        <option value="EFECTIVO">Efectivo en Ventanilla</option>
+                        <option value="TRANSFERENCIA">Transferencia Bancaria</option>
+                        <option value="CHEQUE">Cheque</option>
+                    </select>
+                </div>
+
+                <!-- Desglose de Imputación (Mora -> Interés -> Capital) PR-18 -->
+                <div class="bg-blue-50/70 p-3.5 rounded-lg border border-blue-200 text-xs space-y-1.5">
+                    <span class="font-bold text-blue-900 block border-b border-blue-200 pb-1">
+                        <i class="fa-solid fa-list-check mr-1"></i> Desglose de Prelación Legal (PR-18):
+                    </span>
+                    <div class="flex justify-between">
+                        <span class="text-slate-600">&rarr; 1. Cobertura de Mora:</span>
+                        <span id="prevMora" class="font-bold text-rose-700">$ 0.00</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-600">&rarr; 2. Cobertura de Interés:</span>
+                        <span id="prevInteres" class="font-bold text-blue-700">$ 0.00</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-600">&rarr; 3. Abono a Capital:</span>
+                        <span id="prevCapital" class="font-bold text-emerald-700">$ 0.00</span>
+                    </div>
+                    <div class="flex justify-between border-t border-blue-200 pt-1 font-bold text-slate-900">
+                        <span>Nuevo Saldo Restante:</span>
+                        <span id="prevNuevoSaldo">$ 0.00</span>
+                    </div>
+                </div>
+
+                <button type="submit"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg text-xs shadow-md transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>Confirmar Pago y Emitir Comprobante PDF</span>
+                </button>
+            </form>
+
+            <script>
+            function actualizarDesglose() {
+                const pago = parseFloat(document.getElementById('monto_pago').value || 0);
+                const mora = parseFloat(document.getElementById('mora_actual').value || 0);
+                const interes = parseFloat(document.getElementById('interes_actual').value || 0);
+                const saldoCap = parseFloat(document.getElementById('saldo_capital').value || 0);
+
+                let disp = pago;
+                const moraCob = Math.min(disp, mora);
+                disp -= moraCob;
+
+                const intCob = Math.min(disp, interes);
+                disp -= intCob;
+
+                const capCob = Math.min(disp, saldoCap);
+                disp -= capCob;
+
+                const nuevoSaldo = Math.max(0, saldoCap - capCob);
+
+                document.getElementById('prevMora').innerText = '$' + moraCob.toLocaleString('es-CO', {minimumFractionDigits: 2});
+                document.getElementById('prevInteres').innerText = '$' + intCob.toLocaleString('es-CO', {minimumFractionDigits: 2});
+                document.getElementById('prevCapital').innerText = '$' + capCob.toLocaleString('es-CO', {minimumFractionDigits: 2});
+                document.getElementById('prevNuevoSaldo').innerText = '$' + nuevoSaldo.toLocaleString('es-CO', {minimumFractionDigits: 2});
+            }
+            actualizarDesglose();
+            </script>
+            {% else %}
+            <div class="text-center py-16 text-slate-400">
+                <i class="fa-solid fa-hand-pointer text-4xl mb-3 block text-slate-300"></i>
+                Seleccione un préstamo de la lista izquierda para ingresar el valor y recaudar.
+            </div>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
