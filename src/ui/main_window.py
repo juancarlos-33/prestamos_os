@@ -22,6 +22,7 @@ from src.ui.prestamos_view import PrestamosView
 from src.ui.pagos_view import PagosView
 from src.ui.config_view import ConfigView
 from src.ui.reportes_view import ReportesView
+from src.ui.calendar_view import CalendarioView
 from src.daemon.ipc_client import DaemonIPCClient
 from src.config import config_app
 
@@ -107,11 +108,13 @@ class MainWindow(QMainWindow):
         self.tab_clientes = ClientesView(self)
         self.tab_prestamos = PrestamosView(self, user_session=self.user_session)
         self.tab_pagos = PagosView(self, user_session=self.user_session)
+        self.tab_calendario = CalendarioView(self, user_session=self.user_session)
         self.tab_reportes = ReportesView(self, user_session=self.user_session)
 
         self.tabs.addTab(self.tab_clientes, "👥 Clientes")
         self.tabs.addTab(self.tab_prestamos, "📊 Préstamos y Simulación")
         self.tabs.addTab(self.tab_pagos, "💰 Pagos y Recaudos")
+        self.tabs.addTab(self.tab_calendario, "📅 Calendario de Vencimientos")
         self.tabs.addTab(self.tab_reportes, "📑 Reportes y Exportación")
 
         # PR-02: La pestaña de configuración solo está habilitada para Administradores
@@ -134,11 +137,13 @@ class MainWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.lbl_status_ipc)
 
     def _al_cambiar_pestana(self, index: int):
-        # Actualizar dinámicamente datos de clientes o préstamos al cambiar de pestaña
+        # Actualizar dinámicamente datos según la pestaña activa
         if index == 1:
             self.tab_prestamos.actualizar_lista_clientes()
         elif index == 2:
             self.tab_pagos.cargar_prestamos_activos()
+        elif index == 3:
+            self.tab_calendario.cargar_datos_calendario()
 
     def _iniciar_monitor_ipc(self):
         """Temporizador periódico de bajo impacto para vigilar el estado del Demonio."""
